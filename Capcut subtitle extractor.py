@@ -1,3 +1,12 @@
+"""
+The subtitles extracted will come from the first text track
+
+If you want your subtitles to be extracted, put it in the
+first text track, any other subtitles won't be extracted
+"""
+
+#imports
+
 from json import loads
 from pprint import pprint as p
 from tkinter import Tk, filedialog
@@ -5,13 +14,14 @@ from time import sleep
 from subprocess import Popen
 from os import getenv
 
+#timestamp generating function
 def timestamp(t):
     t = t//1000
     milli = t%1000
     sec = (t//1000)%60
     mins = (t//60000)%60
     hrs = (t//3600000)%24
-    return f"{hrs}:{mins:02}:{sec:02}.{milli:03}"
+    return f"{hrs}:{mins:02}:{sec:02},{milli:03}"
 
 print("Choose video project folder [popup coming]")
 sleep(2)
@@ -24,9 +34,11 @@ name = folder.split("/")[-1].lower().replace(" ", "_")
 with open(folder+"/draft_content.json", encoding="utf-8") as f:
     cont = loads(f.read())
     texts = []
-    for m in cont["tracks"]:
+    #gets the first text track and extracts everything from it
+    for m in cont["tracks"][::-1]:
         if m['type']=="text":
             texts.extend(m["segments"])
+            break
     maps = {}
     for t in texts:
         maps[t["material_id"]] = (t["target_timerange"]["start"], t["target_timerange"]["start"] + t["target_timerange"]["duration"])
@@ -34,12 +46,11 @@ with open(folder+"/draft_content.json", encoding="utf-8") as f:
     output = ""
     counter = 0
     for k in subs:
-        if k["check_flag"]!=15:
-            continue
-        counter += 1
-        output += f"{counter:03d}\n"
-        times = maps[k["id"]]
-        output += f"{timestamp(times[0])} --> {timestamp(times[1])}\n"+loads(k["content"])["text"]+"\n\n"
+        if maps.get(k['id'], False):
+            counter += 1
+            output += f"{counter:03d}\n"
+            times = maps[k["id"]]
+            output += f"{timestamp(times[0])} --> {timestamp(times[1])}\n"+loads(k["content"])["text"]+"\n\n"
 output = output[:-2]
 with open(folder+"/"+name+".srt", "w", encoding="utf-8") as final_file:
     final_file.write(output)
